@@ -10,9 +10,37 @@ class CanvasGraph
     @largestX = Math.max (point.x for point in @data)...
     @largestY = Math.max (point.y for point in @data)...
 
-    console.log @largestX
-
     # @mirrorVertically()
+
+    canvas.addEventListener 'mousedown', (e) ->
+      @dragging = true
+      @newMark = document.createElement('div')
+      @newMark.className = "mark"
+      @newMark.style.left = e.x
+      document.getElementById('marks-container').appendChild(@newMark)
+      @startingPoint = e.x
+      console.log e
+      console.log e.x-@getBoundingClientRect().left, e.y-@getBoundingClientRect().top
+
+    canvas.addEventListener 'mousemove', (e) ->
+      if @dragging
+        if e.x > @startingPoint
+          @newMark.style.width = e.x - @startingPoint
+        else
+          @newMark.style.width = @startingPoint - e.x
+          @newMark.style.left = @startingPoint - parseFloat(@newMark.style.width, 10)
+
+    canvas.addEventListener 'mouseup', (e) ->
+      @dragging = false
+      console.log e
+      console.log e.x-@getBoundingClientRect().left, e.y-@getBoundingClientRect().top
+
+    zoomBtn = document.getElementById('toggle-zoom')
+    zoomBtn.addEventListener 'click', (e) =>
+      @zoomed = !@zoomed
+      if @zoomed then canvasState.plotZoomedPoints(5,20) else canvasState.rescale()
+
+    @dragging = false
 
   drawAxes: ->
     for num in [0..@canvas.width] by 100
@@ -57,22 +85,6 @@ canvasState = new CanvasGraph(canvas, light_curve_data)
 canvasState.plotPoints()
 # canvasState.rescale()
 # canvasState.plotZoomedPoints(15,34.98)
-
-canvas.addEventListener 'mousedown', (e) -> 
-  console.log e
-  console.log e.x-@getBoundingClientRect().left, e.y-@getBoundingClientRect().top
-  #coordinates of click event, make more robust
-
-canvas.addEventListener 'mouseup', (e) -> 
-  console.log e
-  console.log e.x-@getBoundingClientRect().left, e.y-@getBoundingClientRect().top
-  #coordinates of click event, make more robust
-
-zoomBtn = document.getElementById('toggle-zoom')
-zoomBtn.addEventListener 'click', (e) =>
-  @zoomed = !@zoomed
-  if @zoomed then canvasState.plotZoomedPoints(5,20) else canvasState.rescale() 
-
 #TODO:
 #make a function that converts dom coordinates to data coordinates, and vise versa
 #plotting scaling

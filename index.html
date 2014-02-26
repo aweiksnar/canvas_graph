@@ -1,9 +1,33 @@
 <html>
 <head>
   <title>planet canvas</title>
+  <style type="text/css">
+    .mark {
+      position: absolute;
+      height: 387px;
+      top: 8px;
+      background-color:rgba(255,0,0,.5);
+      border: 2px solid red;
+      border-top: 13px solid red;
+      pointer-events:none;
+    }
+
+/*    .mark:before {
+      content: "x";
+      position: absolute;
+      color: #fff;
+      margin: -14px 0 0 150px;
+      font-size: 12px;
+      top: 0;
+      z-index: 5;
+    }*/
+  </style>
 </head>
 <body>
   <canvas id="graph" width="1000" height="400" style="border: 1px solid #5e5e5e; background:rgba(13, 21, 24, .9)"></canvas>
+  <div id="marks-container">
+    <!-- <div class="mark"></div> -->
+  </div>
   <button id="toggle-zoom" style="display:block;">toggle zoom</button>
   <script type="text/javascript" src="data.js"></script>
   <script type="text/javascript" src="app.js"></script>
