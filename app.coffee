@@ -3,6 +3,7 @@ class CanvasGraph
     @ctx = @canvas.getContext('2d')
     window.ctx = @ctx
     window.canvas = @canvas
+    window.canvasGraph = @
 
     @smallestX = Math.min (point.x for point in @data)...
     @smallestY = Math.min (point.y for point in @data)...
@@ -16,7 +17,9 @@ class CanvasGraph
 
     canvas.addEventListener 'mousedown', (e) =>
       @dragging = true
-      @mark = new Mark(e)
+      @mark = new Mark(e, @)
+      @marks.create(@mark)
+      @mark.draw(e)
 
     canvas.addEventListener 'mousemove', (e) =>
       @mark.draw(e) if @dragging
@@ -25,6 +28,7 @@ class CanvasGraph
       @dragging = false
       @marks.add(@mark)
 
+      document.getElementById('points').innerHTML += "x1: #{@mark.dataXMin}, x2: #{@mark.dataXMax}</br>"
       console.log @marks
 
       # console.log e.x-@getBoundingClientRect().left, e.y-@getBoundingClientRect().top
@@ -37,6 +41,7 @@ class CanvasGraph
     @dragging = false
 
   drawAxes: ->
+    #draws non-scaled axes
     for num in [0..@canvas.width] by 100
       @ctx.moveTo(num-.5, 0)
       @ctx.lineTo(num-.5, @canvas.height)
@@ -55,6 +60,8 @@ class CanvasGraph
       @ctx.fillStyle = "#fff"
       @ctx.fillRect(x, y,2,2)
 
+    @scale = (@largestX - @smallestX) / @largestX
+
   plotZoomedPoints: (xMin, xMax) ->
     @clearCanvas()
     for point in @data
@@ -62,6 +69,8 @@ class CanvasGraph
       y = ((point.y - @largestY) / (@smallestY - @largestY)) * @canvas.height
       @ctx.fillStyle = "#fff"
       @ctx.fillRect(x, y,2,2)
+
+    @scale = 1 + (xMax - xMin) / @largestX 
 
   rescale: ->
     @clearCanvas()
@@ -73,30 +82,56 @@ class CanvasGraph
     @ctx.translate(0,@canvas.height)
     @ctx.scale(1,-1)
 
+  toCanvasXCoord: (dataPoint) -> ((dataPoint - @smallestX) / (@largestX - @smallestX)) * @canvas.width
+
+  toDataXCoord: (point) -> (point / @canvas.width) * (@largestX - @smallestX)
+
+  toDomXCoord: (dataPoint) -> (point / @canvas.width) * (@largestX - @smallestX) * @canvas.width + @canvas.getBoundingClientRect().left
+
 class Marks
   constructor: -> @all = []
 
+  create: (mark) -> document.getElementById('marks-container').appendChild(mark.element)
+
   add: (mark) -> @all.push(mark)
 
-  remove: (mark) -> 
+  remove: (mark) ->
     @all.splice(@all.indexOf(mark), 1)
     document.getElementById('marks-container').removeChild(mark.element)
 
+  destroyAll: ->
+    document.getElementById('marks-container').innerHTML = ""
+    @all = []
+
+
 class Mark
-  constructor: (e) ->
+  constructor: (e, @canvasGraph) ->
     @element = document.createElement('div')
     @element.className = "mark"
     @element.style.left = e.x
     @element.style.top = e.target.getBoundingClientRect().top
-    document.getElementById('marks-container').appendChild(@element)
     @startingPoint = e.x
 
   draw: (e) ->
-    if e.x > @startingPoint
-      @element.style.width = e.x - @startingPoint
-    else
-      @element.style.width = @startingPoint - e.x
-      @element.style.left = @startingPoint - parseFloat(@element.style.width, 10)
+    markLeftX = Math.min @startingPoint, e.x
+    markRightX = Math.max @startingPoint, e.x
+
+    @element.style.left = Math.min markLeftX, markRightX
+    @element.style.width = Math.abs markRightX - markLeftX
+    # @element.style.webkitTransform = "rotate(-2deg)" #whoa
+
+    #dom coords
+    @domXMin = markLeftX
+    @domXMax = markRightX
+
+    #canvas coords
+    @canvasXMin = markLeftX - @canvasGraph.canvas.getBoundingClientRect().left
+    @canvasXMax = markRightX - @canvasGraph.canvas.getBoundingClientRect().left
+
+    #data coords
+    @dataXMin = @canvasGraph.toDataXCoord(@canvasXMin)
+    @dataXMax = @canvasGraph.toDataXCoord(@canvasXMax)
+
 
   # move: ->
 
@@ -109,7 +144,13 @@ canvasState.plotPoints()
 
 
 #TODO:
-#make a function that converts dom coordinates to data coordinates, and vise versa
-#plotting scaling
+
+#zoom
+
+#add a scaling function to redraw marks
+#only do 'pointer-events: none' if drawing, take off if clicking inside a mark
+#add handles, dragging and such
+
+#make Marks create #marks-container, and CanvasGraph possibly create canvas
 #math
 

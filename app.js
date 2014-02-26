@@ -10,6 +10,7 @@
       this.ctx = this.canvas.getContext('2d');
       window.ctx = this.ctx;
       window.canvas = this.canvas;
+      window.canvasGraph = this;
       this.smallestX = Math.min.apply(Math, (function() {
         var _i, _len, _ref, _results;
         _ref = this.data;
@@ -55,7 +56,9 @@
       canvas.addEventListener('mousedown', (function(_this) {
         return function(e) {
           _this.dragging = true;
-          return _this.mark = new Mark(e);
+          _this.mark = new Mark(e, _this);
+          _this.marks.create(_this.mark);
+          return _this.mark.draw(e);
         };
       })(this));
       canvas.addEventListener('mousemove', (function(_this) {
@@ -69,6 +72,7 @@
         return function(e) {
           _this.dragging = false;
           _this.marks.add(_this.mark);
+          document.getElementById('points').innerHTML += "x1: " + _this.mark.dataXMin + ", x2: " + _this.mark.dataXMax + "</br>";
           return console.log(_this.marks);
         };
       })(this));
@@ -101,32 +105,30 @@
     };
 
     CanvasGraph.prototype.plotPoints = function() {
-      var point, x, y, _i, _len, _ref, _results;
+      var point, x, y, _i, _len, _ref;
       _ref = this.data;
-      _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         point = _ref[_i];
         x = ((point.x - this.smallestX) / (this.largestX - this.smallestX)) * this.canvas.width;
         y = ((point.y - this.largestY) / (this.smallestY - this.largestY)) * this.canvas.height;
         this.ctx.fillStyle = "#fff";
-        _results.push(this.ctx.fillRect(x, y, 2, 2));
+        this.ctx.fillRect(x, y, 2, 2);
       }
-      return _results;
+      return this.scale = (this.largestX - this.smallestX) / this.largestX;
     };
 
     CanvasGraph.prototype.plotZoomedPoints = function(xMin, xMax) {
-      var point, x, y, _i, _len, _ref, _results;
+      var point, x, y, _i, _len, _ref;
       this.clearCanvas();
       _ref = this.data;
-      _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         point = _ref[_i];
         x = ((point.x - xMin) / (xMax - xMin)) * this.canvas.width;
         y = ((point.y - this.largestY) / (this.smallestY - this.largestY)) * this.canvas.height;
         this.ctx.fillStyle = "#fff";
-        _results.push(this.ctx.fillRect(x, y, 2, 2));
+        this.ctx.fillRect(x, y, 2, 2);
       }
-      return _results;
+      return this.scale = 1 + (xMax - xMin) / this.largestX;
     };
 
     CanvasGraph.prototype.rescale = function() {
@@ -143,6 +145,18 @@
       return this.ctx.scale(1, -1);
     };
 
+    CanvasGraph.prototype.toCanvasXCoord = function(dataPoint) {
+      return ((dataPoint - this.smallestX) / (this.largestX - this.smallestX)) * this.canvas.width;
+    };
+
+    CanvasGraph.prototype.toDataXCoord = function(point) {
+      return (point / this.canvas.width) * (this.largestX - this.smallestX);
+    };
+
+    CanvasGraph.prototype.toDomXCoord = function(dataPoint) {
+      return (point / this.canvas.width) * (this.largestX - this.smallestX) * this.canvas.width + this.canvas.getBoundingClientRect().left;
+    };
+
     return CanvasGraph;
 
   })();
@@ -151,6 +165,10 @@
     function Marks() {
       this.all = [];
     }
+
+    Marks.prototype.create = function(mark) {
+      return document.getElementById('marks-container').appendChild(mark.element);
+    };
 
     Marks.prototype.add = function(mark) {
       return this.all.push(mark);
@@ -161,27 +179,37 @@
       return document.getElementById('marks-container').removeChild(mark.element);
     };
 
+    Marks.prototype.destroyAll = function() {
+      document.getElementById('marks-container').innerHTML = "";
+      return this.all = [];
+    };
+
     return Marks;
 
   })();
 
   Mark = (function() {
-    function Mark(e) {
+    function Mark(e, canvasGraph) {
+      this.canvasGraph = canvasGraph;
       this.element = document.createElement('div');
       this.element.className = "mark";
       this.element.style.left = e.x;
       this.element.style.top = e.target.getBoundingClientRect().top;
-      document.getElementById('marks-container').appendChild(this.element);
       this.startingPoint = e.x;
     }
 
     Mark.prototype.draw = function(e) {
-      if (e.x > this.startingPoint) {
-        return this.element.style.width = e.x - this.startingPoint;
-      } else {
-        this.element.style.width = this.startingPoint - e.x;
-        return this.element.style.left = this.startingPoint - parseFloat(this.element.style.width, 10);
-      }
+      var markLeftX, markRightX;
+      markLeftX = Math.min(this.startingPoint, e.x);
+      markRightX = Math.max(this.startingPoint, e.x);
+      this.element.style.left = Math.min(markLeftX, markRightX);
+      this.element.style.width = Math.abs(markRightX - markLeftX);
+      this.domXMin = markLeftX;
+      this.domXMax = markRightX;
+      this.canvasXMin = markLeftX - this.canvasGraph.canvas.getBoundingClientRect().left;
+      this.canvasXMax = markRightX - this.canvasGraph.canvas.getBoundingClientRect().left;
+      this.dataXMin = this.canvasGraph.toDataXCoord(this.canvasXMin);
+      return this.dataXMax = this.canvasGraph.toDataXCoord(this.canvasXMax);
     };
 
     return Mark;
