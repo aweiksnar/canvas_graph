@@ -84,9 +84,10 @@ class CanvasGraph
 
   toCanvasXCoord: (dataPoint) -> ((dataPoint - @smallestX) / (@largestX - @smallestX)) * @canvas.width
 
-  toDataXCoord: (point) -> (point / @canvas.width) * (@largestX - @smallestX)
+  toDataXCoord: (canvasPoint) -> (canvasPoint / @canvas.width) * (@largestX - @smallestX)
 
-  toDomXCoord: (dataPoint) -> (point / @canvas.width) * (@largestX - @smallestX) * @canvas.width + @canvas.getBoundingClientRect().left
+  # TODO: fix the math on this one....
+  toDomXCoord: (dataPoint) -> ((dataPoint / @canvas.width) * (@largestX - @smallestX) * @canvas.width) + @canvas.getBoundingClientRect().left
 
 class Marks
   constructor: -> @all = []
@@ -103,6 +104,7 @@ class Marks
     document.getElementById('marks-container').innerHTML = ""
     @all = []
 
+  drawAll: (scale = 1) ->
 
 class Mark
   constructor: (e, @canvasGraph) ->

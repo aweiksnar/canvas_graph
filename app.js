@@ -149,12 +149,12 @@
       return ((dataPoint - this.smallestX) / (this.largestX - this.smallestX)) * this.canvas.width;
     };
 
-    CanvasGraph.prototype.toDataXCoord = function(point) {
-      return (point / this.canvas.width) * (this.largestX - this.smallestX);
+    CanvasGraph.prototype.toDataXCoord = function(canvasPoint) {
+      return (canvasPoint / this.canvas.width) * (this.largestX - this.smallestX);
     };
 
     CanvasGraph.prototype.toDomXCoord = function(dataPoint) {
-      return (point / this.canvas.width) * (this.largestX - this.smallestX) * this.canvas.width + this.canvas.getBoundingClientRect().left;
+      return ((dataPoint / this.canvas.width) * (this.largestX - this.smallestX) * this.canvas.width) + this.canvas.getBoundingClientRect().left;
     };
 
     return CanvasGraph;
@@ -182,6 +182,12 @@
     Marks.prototype.destroyAll = function() {
       document.getElementById('marks-container').innerHTML = "";
       return this.all = [];
+    };
+
+    Marks.prototype.drawAll = function(scale) {
+      if (scale == null) {
+        scale = 1;
+      }
     };
 
     return Marks;
