@@ -111,7 +111,7 @@ class Mark
     @element = document.createElement('div')
     @element.className = "mark"
     @element.style.left = e.x
-    @element.style.top = e.target.getBoundingClientRect().top
+    @element.style.top = e.target.offsetTop
     @startingPoint = e.x
 
   draw: (e) ->

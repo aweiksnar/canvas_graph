@@ -200,7 +200,7 @@
       this.element = document.createElement('div');
       this.element.className = "mark";
       this.element.style.left = e.x;
-      this.element.style.top = e.target.getBoundingClientRect().top;
+      this.element.style.top = e.target.offsetTop;
       this.startingPoint = e.x;
     }
 
