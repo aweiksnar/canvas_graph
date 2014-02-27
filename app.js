@@ -204,6 +204,18 @@
       this.element.style.left = e.x;
       this.element.style.top = e.target.offsetTop;
       this.startingPoint = e.x;
+      this.element.addEventListener('mousedown', (function(_this) {
+        return function(e) {
+          console.log("e", e);
+          if ((Math.abs(e.layerX - (_this.domXMax - _this.domXMin))) < 10) {
+            _this.startingPoint = _this.domXMin;
+            return _this.canvasGraph.dragging = true;
+          } else if (e.layerX < 10) {
+            _this.startingPoint = _this.domXMax;
+            return _this.canvasGraph.dragging = true;
+          }
+        };
+      })(this));
       this.element.addEventListener('mousemove', (function(_this) {
         return function(e) {
           if (_this.canvasGraph.dragging) {

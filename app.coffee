@@ -110,6 +110,15 @@ class Mark
     @element.style.top = e.target.offsetTop
     @startingPoint = e.x
 
+    @element.addEventListener 'mousedown', (e) =>
+      console.log "e", e
+      if (Math.abs e.layerX - (@domXMax-@domXMin)) < 10
+        @startingPoint = @domXMin
+        @canvasGraph.dragging = true
+      else if e.layerX < 10
+        @startingPoint = @domXMax
+        @canvasGraph.dragging = true
+
     @element.addEventListener 'mousemove', (e) =>
       @draw(e) if @canvasGraph.dragging
 
@@ -125,8 +134,8 @@ class Mark
       @canvasGraph.marks.remove(@) if e.offsetY < 15
 
   draw: (e) ->
-    markLeftX = Math.min @startingPoint, e.x
-    markRightX = Math.max @startingPoint, e.x
+    markLeftX = (Math.min @startingPoint, e.x)
+    markRightX = (Math.max @startingPoint, e.x)
 
     @element.style.left = Math.min markLeftX, markRightX
     @element.style.width = Math.abs markRightX - markLeftX
