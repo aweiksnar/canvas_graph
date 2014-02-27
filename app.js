@@ -68,14 +68,6 @@
           }
         };
       })(this));
-      canvas.addEventListener('mouseup', (function(_this) {
-        return function(e) {
-          _this.dragging = false;
-          _this.marks.add(_this.mark);
-          document.getElementById('points').innerHTML += "x1: " + _this.mark.dataXMin + ", x2: " + _this.mark.dataXMax + "</br>";
-          return console.log(_this.marks);
-        };
-      })(this));
       zoomBtn = document.getElementById('toggle-zoom');
       zoomBtn.addEventListener('click', (function(_this) {
         return function(e) {
@@ -114,7 +106,8 @@
         this.ctx.fillStyle = "#fff";
         this.ctx.fillRect(x, y, 2, 2);
       }
-      return this.scale = (this.largestX - this.smallestX) / this.largestX;
+      this.scale = (this.largestX - this.smallestX) / this.largestX;
+      return this.marks.drawAll(this.scale);
     };
 
     CanvasGraph.prototype.plotZoomedPoints = function(xMin, xMax) {
@@ -128,7 +121,8 @@
         this.ctx.fillStyle = "#fff";
         this.ctx.fillRect(x, y, 2, 2);
       }
-      return this.scale = 1 + (xMax - xMin) / this.largestX;
+      this.scale = 1 + (xMax - xMin) / this.largestX;
+      return this.marks.drawAll(this.scale);
     };
 
     CanvasGraph.prototype.rescale = function() {
@@ -185,9 +179,17 @@
     };
 
     Marks.prototype.drawAll = function(scale) {
+      var mark, _i, _len, _ref, _results;
       if (scale == null) {
         scale = 1;
       }
+      _ref = this.all;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        mark = _ref[_i];
+        _results.push(mark.element.style.width = parseFloat(mark.element.style.width, 10) * +scale);
+      }
+      return _results;
     };
 
     return Marks;
@@ -202,6 +204,30 @@
       this.element.style.left = e.x;
       this.element.style.top = e.target.offsetTop;
       this.startingPoint = e.x;
+      this.element.addEventListener('mousemove', (function(_this) {
+        return function(e) {
+          if (_this.canvasGraph.dragging) {
+            return _this.draw(e);
+          }
+        };
+      })(this));
+      this.element.addEventListener('mouseup', (function(_this) {
+        return function(e) {
+          if (_this.canvasGraph.dragging) {
+            _this.canvasGraph.dragging = false;
+            _this.canvasGraph.marks.add(_this);
+            document.getElementById('points').innerHTML += "x1: " + _this.dataXMin + ", x2: " + _this.dataXMax + "</br>";
+            return console.log("Marks", _this.canvasGraph.marks);
+          }
+        };
+      })(this));
+      this.element.addEventListener('click', (function(_this) {
+        return function(e) {
+          if (e.offsetY < 15) {
+            return _this.canvasGraph.marks.remove(_this);
+          }
+        };
+      })(this));
     }
 
     Mark.prototype.draw = function(e) {

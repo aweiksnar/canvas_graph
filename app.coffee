@@ -23,15 +23,6 @@ class CanvasGraph
 
     canvas.addEventListener 'mousemove', (e) =>
       @mark.draw(e) if @dragging
-        
-    canvas.addEventListener 'mouseup', (e) =>
-      @dragging = false
-      @marks.add(@mark)
-
-      document.getElementById('points').innerHTML += "x1: #{@mark.dataXMin}, x2: #{@mark.dataXMax}</br>"
-      console.log @marks
-
-      # console.log e.x-@getBoundingClientRect().left, e.y-@getBoundingClientRect().top
 
     zoomBtn = document.getElementById('toggle-zoom')
     zoomBtn.addEventListener 'click', (e) =>
@@ -62,6 +53,8 @@ class CanvasGraph
 
     @scale = (@largestX - @smallestX) / @largestX
 
+    @marks.drawAll(@scale)
+
   plotZoomedPoints: (xMin, xMax) ->
     @clearCanvas()
     for point in @data
@@ -70,7 +63,8 @@ class CanvasGraph
       @ctx.fillStyle = "#fff"
       @ctx.fillRect(x, y,2,2)
 
-    @scale = 1 + (xMax - xMin) / @largestX 
+    @scale = 1 + (xMax - xMin) / @largestX
+    @marks.drawAll(@scale)
 
   rescale: ->
     @clearCanvas()
@@ -105,6 +99,8 @@ class Marks
     @all = []
 
   drawAll: (scale = 1) ->
+    for mark in @all
+      mark.element.style.width = parseFloat(mark.element.style.width, 10) * +scale
 
 class Mark
   constructor: (e, @canvasGraph) ->
@@ -113,6 +109,20 @@ class Mark
     @element.style.left = e.x
     @element.style.top = e.target.offsetTop
     @startingPoint = e.x
+
+    @element.addEventListener 'mousemove', (e) =>
+      @draw(e) if @canvasGraph.dragging
+
+    @element.addEventListener 'mouseup', (e) =>
+      if @canvasGraph.dragging
+        @canvasGraph.dragging = false
+        @canvasGraph.marks.add(@)
+
+        document.getElementById('points').innerHTML += "x1: #{@dataXMin}, x2: #{@dataXMax}</br>"
+        console.log "Marks", @canvasGraph.marks
+
+    @element.addEventListener 'click', (e) =>
+      @canvasGraph.marks.remove(@) if e.offsetY < 15
 
   draw: (e) ->
     markLeftX = Math.min @startingPoint, e.x
