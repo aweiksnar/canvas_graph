@@ -64,9 +64,10 @@
       })(this));
       canvas.addEventListener('mousemove', (function(_this) {
         return function(e) {
+          var _ref, _ref1;
           e.preventDefault();
-          if (_this.mark.dragging) {
-            return _this.mark.draw(e);
+          if ((_ref = _this.mark) != null ? _ref.dragging : void 0) {
+            return (_ref1 = _this.mark) != null ? _ref1.draw(e) : void 0;
           }
         };
       })(this));
@@ -193,10 +194,10 @@
       this.dragging = false;
       this.element.addEventListener('mousedown', (function(_this) {
         return function(e) {
-          if ((Math.abs(e.layerX - (_this.domXMax - _this.domXMin))) < 15) {
+          if ((Math.abs(e.layerX - (_this.domXMax - _this.domXMin))) < 12) {
             _this.startingPoint = _this.domXMin;
             return _this.dragging = true;
-          } else if (e.layerX < 15) {
+          } else if (e.layerX < 12) {
             _this.startingPoint = _this.domXMax;
             return _this.dragging = true;
           } else if (e.layerY > 15) {
@@ -230,7 +231,7 @@
       })(this));
       this.element.addEventListener('click', (function(_this) {
         return function(e) {
-          if (e.offsetY < 15) {
+          if (e.layerY < 15) {
             return _this.canvasGraph.marks.remove(_this);
           }
         };

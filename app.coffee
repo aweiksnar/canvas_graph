@@ -25,7 +25,7 @@ class CanvasGraph
 
     canvas.addEventListener 'mousemove', (e) =>
       e.preventDefault()
-      @mark.draw(e) if @mark.dragging
+      @mark?.draw(e) if @mark?.dragging
 
     zoomBtn = document.getElementById('toggle-zoom')
     zoomBtn.addEventListener 'click', (e) =>
@@ -116,10 +116,10 @@ class Mark
 
     @element.addEventListener 'mousedown', (e) =>
       # resizing
-      if (Math.abs e.layerX - (@domXMax-@domXMin)) < 15
+      if (Math.abs e.layerX - (@domXMax-@domXMin)) < 12
         @startingPoint = @domXMin
         @dragging = true
-      else if e.layerX < 15
+      else if e.layerX < 12
         @startingPoint = @domXMax
         @dragging = true
       else if e.layerY > 15
@@ -141,7 +141,7 @@ class Mark
         @moving = false
 
     @element.addEventListener 'click', (e) =>
-      @canvasGraph.marks.remove(@) if e.offsetY < 15
+      @canvasGraph.marks.remove(@) if e.layerY < 15
 
   draw: (e) ->
     markLeftX = Math.min @startingPoint, e.x
