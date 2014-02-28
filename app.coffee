@@ -16,20 +16,22 @@ class CanvasGraph
     # @mirrorVertically()
 
     canvas.addEventListener 'mousedown', (e) =>
-      @dragging = true
+      e.preventDefault()
+      # @dragging = true
       @mark = new Mark(e, @)
       @marks.create(@mark)
+      @mark.dragging = true
       @mark.draw(e)
 
     canvas.addEventListener 'mousemove', (e) =>
-      @mark.draw(e) if @dragging
+      e.preventDefault()
+      @mark.draw(e) if @mark.dragging
 
     zoomBtn = document.getElementById('toggle-zoom')
     zoomBtn.addEventListener 'click', (e) =>
+      e.preventDefault()
       @zoomed = !@zoomed
       if @zoomed then canvasState.plotZoomedPoints(5,20) else canvasState.rescale()
-
-    @dragging = false
 
   drawAxes: ->
     #draws non-scaled axes
@@ -53,7 +55,7 @@ class CanvasGraph
 
     @scale = (@largestX - @smallestX) / @largestX
 
-    @marks.drawAll(@scale)
+    # @marks.drawAll(@scale)
 
   plotZoomedPoints: (xMin, xMax) ->
     @clearCanvas()
@@ -64,7 +66,7 @@ class CanvasGraph
       @ctx.fillRect(x, y,2,2)
 
     @scale = 1 + (xMax - xMin) / @largestX
-    @marks.drawAll(@scale)
+    # @marks.drawAll(@scale)
 
   rescale: ->
     @clearCanvas()
@@ -98,48 +100,68 @@ class Marks
     document.getElementById('marks-container').innerHTML = ""
     @all = []
 
-  drawAll: (scale = 1) ->
-    for mark in @all
-      mark.element.style.width = parseFloat(mark.element.style.width, 10) * +scale
+  # drawAll: (scale = 1) ->
+  #   for mark in @all
+  #     mark.element.style.width = parseFloat(mark.element.style.width, 10) * +scale
 
 class Mark
   constructor: (e, @canvasGraph) ->
+    #TODO: make an active state
     @element = document.createElement('div')
     @element.className = "mark"
     @element.style.left = e.x
     @element.style.top = e.target.offsetTop
     @startingPoint = e.x
+    @dragging = false
 
     @element.addEventListener 'mousedown', (e) =>
-      console.log "e", e
-      if (Math.abs e.layerX - (@domXMax-@domXMin)) < 10
+      # resizing
+      if (Math.abs e.layerX - (@domXMax-@domXMin)) < 15
         @startingPoint = @domXMin
-        @canvasGraph.dragging = true
-      else if e.layerX < 10
+        @dragging = true
+      else if e.layerX < 15
         @startingPoint = @domXMax
-        @canvasGraph.dragging = true
+        @dragging = true
+      else if e.layerY > 15
+        @moving = true
+        @movingStart = e.x
 
     @element.addEventListener 'mousemove', (e) =>
-      @draw(e) if @canvasGraph.dragging
+      @draw(e) if @dragging
+      @move(e) if @moving
 
     @element.addEventListener 'mouseup', (e) =>
-      if @canvasGraph.dragging
-        @canvasGraph.dragging = false
+      if @dragging
         @canvasGraph.marks.add(@)
-
         document.getElementById('points').innerHTML += "x1: #{@dataXMin}, x2: #{@dataXMax}</br>"
         console.log "Marks", @canvasGraph.marks
+        @dragging = false
+      else if @moving
+        @save(@domXMin, @domXMax)
+        @moving = false
 
     @element.addEventListener 'click', (e) =>
       @canvasGraph.marks.remove(@) if e.offsetY < 15
 
   draw: (e) ->
-    markLeftX = (Math.min @startingPoint, e.x)
-    markRightX = (Math.max @startingPoint, e.x)
+    markLeftX = Math.min @startingPoint, e.x
+    markRightX = Math.max @startingPoint, e.x
 
     @element.style.left = Math.min markLeftX, markRightX
     @element.style.width = Math.abs markRightX - markLeftX
     # @element.style.webkitTransform = "rotate(-2deg)" #whoa
+
+    @save(markLeftX, markRightX)
+
+  move: (e) ->
+    markLeftX = @domXMin - (@movingStart - e.x)
+    markRightX = @domXMax - (@movingStart - e.x)
+
+    @element.style.left = Math.min markLeftX, markRightX
+    @element.style.width = Math.abs markRightX - markLeftX
+
+  save: (markLeftX, markRightX) ->
+    # need to update starting point (or remove)
 
     #dom coords
     @domXMin = markLeftX
@@ -154,15 +176,12 @@ class Mark
     @dataXMax = @canvasGraph.toDataXCoord(@canvasXMax)
 
 
-  # move: ->
-
 canvas = document.getElementById("graph")
 canvasState = new CanvasGraph(canvas, light_curve_data)
 # canvasState.drawAxes()
 canvasState.plotPoints()
 # canvasState.rescale()
 # canvasState.plotZoomedPoints(15,34.98)
-
 
 #TODO:
 
@@ -174,4 +193,3 @@ canvasState.plotPoints()
 
 #make Marks create #marks-container, and CanvasGraph possibly create canvas
 #math
-

@@ -55,15 +55,17 @@
       window.marks = this.marks;
       canvas.addEventListener('mousedown', (function(_this) {
         return function(e) {
-          _this.dragging = true;
+          e.preventDefault();
           _this.mark = new Mark(e, _this);
           _this.marks.create(_this.mark);
+          _this.mark.dragging = true;
           return _this.mark.draw(e);
         };
       })(this));
       canvas.addEventListener('mousemove', (function(_this) {
         return function(e) {
-          if (_this.dragging) {
+          e.preventDefault();
+          if (_this.mark.dragging) {
             return _this.mark.draw(e);
           }
         };
@@ -71,6 +73,7 @@
       zoomBtn = document.getElementById('toggle-zoom');
       zoomBtn.addEventListener('click', (function(_this) {
         return function(e) {
+          e.preventDefault();
           _this.zoomed = !_this.zoomed;
           if (_this.zoomed) {
             return canvasState.plotZoomedPoints(5, 20);
@@ -79,7 +82,6 @@
           }
         };
       })(this));
-      this.dragging = false;
     }
 
     CanvasGraph.prototype.drawAxes = function() {
@@ -106,8 +108,7 @@
         this.ctx.fillStyle = "#fff";
         this.ctx.fillRect(x, y, 2, 2);
       }
-      this.scale = (this.largestX - this.smallestX) / this.largestX;
-      return this.marks.drawAll(this.scale);
+      return this.scale = (this.largestX - this.smallestX) / this.largestX;
     };
 
     CanvasGraph.prototype.plotZoomedPoints = function(xMin, xMax) {
@@ -121,8 +122,7 @@
         this.ctx.fillStyle = "#fff";
         this.ctx.fillRect(x, y, 2, 2);
       }
-      this.scale = 1 + (xMax - xMin) / this.largestX;
-      return this.marks.drawAll(this.scale);
+      return this.scale = 1 + (xMax - xMin) / this.largestX;
     };
 
     CanvasGraph.prototype.rescale = function() {
@@ -178,20 +178,6 @@
       return this.all = [];
     };
 
-    Marks.prototype.drawAll = function(scale) {
-      var mark, _i, _len, _ref, _results;
-      if (scale == null) {
-        scale = 1;
-      }
-      _ref = this.all;
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        mark = _ref[_i];
-        _results.push(mark.element.style.width = parseFloat(mark.element.style.width, 10) * +scale);
-      }
-      return _results;
-    };
-
     return Marks;
 
   })();
@@ -204,32 +190,41 @@
       this.element.style.left = e.x;
       this.element.style.top = e.target.offsetTop;
       this.startingPoint = e.x;
+      this.dragging = false;
       this.element.addEventListener('mousedown', (function(_this) {
         return function(e) {
-          console.log("e", e);
-          if ((Math.abs(e.layerX - (_this.domXMax - _this.domXMin))) < 10) {
+          if ((Math.abs(e.layerX - (_this.domXMax - _this.domXMin))) < 15) {
             _this.startingPoint = _this.domXMin;
-            return _this.canvasGraph.dragging = true;
-          } else if (e.layerX < 10) {
+            return _this.dragging = true;
+          } else if (e.layerX < 15) {
             _this.startingPoint = _this.domXMax;
-            return _this.canvasGraph.dragging = true;
+            return _this.dragging = true;
+          } else if (e.layerY > 15) {
+            _this.moving = true;
+            return _this.movingStart = e.x;
           }
         };
       })(this));
       this.element.addEventListener('mousemove', (function(_this) {
         return function(e) {
-          if (_this.canvasGraph.dragging) {
-            return _this.draw(e);
+          if (_this.dragging) {
+            _this.draw(e);
+          }
+          if (_this.moving) {
+            return _this.move(e);
           }
         };
       })(this));
       this.element.addEventListener('mouseup', (function(_this) {
         return function(e) {
-          if (_this.canvasGraph.dragging) {
-            _this.canvasGraph.dragging = false;
+          if (_this.dragging) {
             _this.canvasGraph.marks.add(_this);
             document.getElementById('points').innerHTML += "x1: " + _this.dataXMin + ", x2: " + _this.dataXMax + "</br>";
-            return console.log("Marks", _this.canvasGraph.marks);
+            console.log("Marks", _this.canvasGraph.marks);
+            return _this.dragging = false;
+          } else if (_this.moving) {
+            _this.save(_this.domXMin, _this.domXMax);
+            return _this.moving = false;
           }
         };
       })(this));
@@ -248,6 +243,18 @@
       markRightX = Math.max(this.startingPoint, e.x);
       this.element.style.left = Math.min(markLeftX, markRightX);
       this.element.style.width = Math.abs(markRightX - markLeftX);
+      return this.save(markLeftX, markRightX);
+    };
+
+    Mark.prototype.move = function(e) {
+      var markLeftX, markRightX;
+      markLeftX = this.domXMin - (this.movingStart - e.x);
+      markRightX = this.domXMax - (this.movingStart - e.x);
+      this.element.style.left = Math.min(markLeftX, markRightX);
+      return this.element.style.width = Math.abs(markRightX - markLeftX);
+    };
+
+    Mark.prototype.save = function(markLeftX, markRightX) {
       this.domXMin = markLeftX;
       this.domXMax = markRightX;
       this.canvasXMin = markLeftX - this.canvasGraph.canvas.getBoundingClientRect().left;
