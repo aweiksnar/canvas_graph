@@ -2,29 +2,19 @@
 <head>
   <title>planet canvas</title>
   <style type="text/css">
-    .mark {
-      position: absolute;
-      height: 387px;
-      background-color:rgba(255,0,0,.5);
-      border: 2px solid red;
-      border-top: 13px solid red;
-      /*pointer-events:none;*/
+    #marks-container {
+      height: 400px;
+      width: 1000px;
+      overflow: hidden;
+      float: left;
+      position: relative;
     }
-/*
-    .mark:after {
-      content: "x";
-      position: absolute;
-      color: #fff;
-      margin: -10px 50%;
-      font-size: 12px;
-      top: 0;
-      z-index: 5;
-    }*/
   </style>
 </head>
 <body>
-  <canvas id="graph" width="1000" height="400" style="border: 1px solid #5e5e5e; background:rgba(13, 21, 24, .9);margin: 20px"></canvas>
-  <div id="marks-container"><!-- <div class="mark"></div> --></div>
+  <div id="marks-container">
+    <canvas id="graph" width="1000" height="400" style="border: 1px solid #5e5e5e; background:rgba(13, 21, 24, .9);"></canvas>
+  </div>
   <button id="toggle-zoom" style="display:block; margin:20px;">toggle zoom</button>
   <div id="points"></div>
   <script type="text/javascript" src="data.js"></script>

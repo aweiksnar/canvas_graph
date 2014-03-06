@@ -17,47 +17,20 @@ class CanvasGraph
 
     canvas.addEventListener 'mousedown', (e) =>
       e.preventDefault()
-      # @dragging = true
       @mark = new Mark(e, @)
       @marks.create(@mark)
       @mark.dragging = true
       @mark.draw(e)
 
-    canvas.addEventListener 'mousemove', (e) =>
-      e.preventDefault()
-      @mark?.draw(e) if @mark?.dragging
-
     zoomBtn = document.getElementById('toggle-zoom')
     zoomBtn.addEventListener 'click', (e) =>
       e.preventDefault()
       @zoomed = !@zoomed
-      if @zoomed then canvasState.plotZoomedPoints(5,20) else canvasState.rescale()
+      if @zoomed then canvasState.plotPoints(5,20) else canvasState.plotPoints()
 
-  drawAxes: ->
-    #draws non-scaled axes
-    for num in [0..@canvas.width] by 100
-      @ctx.moveTo(num-.5, 0)
-      @ctx.lineTo(num-.5, @canvas.height)
-
-    for num in [0..@canvas.height] by 100
-      @ctx.moveTo(0, num-.5)
-      @ctx.lineTo(@canvas.width, num-.5)
-
-    @ctx.strokeStyle = "gray"
-    @ctx.stroke()
-
-  plotPoints: ->
-    for point in @data
-      x = ((point.x - @smallestX) / (@largestX - @smallestX)) * @canvas.width
-      y = ((point.y - @largestY) / (@smallestY - @largestY)) * @canvas.height
-      @ctx.fillStyle = "#fff"
-      @ctx.fillRect(x, y,2,2)
-
-    @scale = (@largestX - @smallestX) / @largestX
-
-    # @marks.drawAll(@scale)
-
-  plotZoomedPoints: (xMin, xMax) ->
+  plotPoints: (xMin = @smallestX, xMax = @largestX) ->
+    @xMin = xMin
+    @xMax = xMax
     @clearCanvas()
     for point in @data
       x = ((point.x - xMin) / (xMax - xMin)) * @canvas.width
@@ -65,12 +38,14 @@ class CanvasGraph
       @ctx.fillStyle = "#fff"
       @ctx.fillRect(x, y,2,2)
 
-    @scale = 1 + (xMax - xMin) / @largestX
-    # @marks.drawAll(@scale)
+    for mark in @marks.all
+      scaledMin = ((mark.dataXMin - xMin) / (xMax - xMin)) * @canvas.width
+      scaledMax = ((mark.dataXMax - xMin) / (xMax - xMin)) * @canvas.width
 
-  rescale: ->
-    @clearCanvas()
-    @plotPoints()
+      mark.element.style.width = (scaledMax-scaledMin) + "px"
+      mark.element.style.left = (scaledMin) + "px"
+
+      mark.save(scaledMin, scaledMax)
 
   clearCanvas: -> @ctx.clearRect(0,0,@canvas.width, @canvas.height)
 
@@ -78,12 +53,9 @@ class CanvasGraph
     @ctx.translate(0,@canvas.height)
     @ctx.scale(1,-1)
 
-  toCanvasXCoord: (dataPoint) -> ((dataPoint - @smallestX) / (@largestX - @smallestX)) * @canvas.width
+  toCanvasXCoord: (dataPoint) -> ((dataPoint - @xMin) / (@xMax - @xMin)) * @canvas.width
 
-  toDataXCoord: (canvasPoint) -> (canvasPoint / @canvas.width) * (@largestX - @smallestX)
-
-  # TODO: fix the math on this one....
-  toDomXCoord: (dataPoint) -> ((dataPoint / @canvas.width) * (@largestX - @smallestX) * @canvas.width) + @canvas.getBoundingClientRect().left
+  toDataXCoord: (canvasPoint) -> ((canvasPoint / @canvas.width) * (@xMax - @xMin)) + @xMin
 
 class Marks
   constructor: -> @all = []
@@ -91,6 +63,8 @@ class Marks
   create: (mark) -> document.getElementById('marks-container').appendChild(mark.element)
 
   add: (mark) -> @all.push(mark)
+
+  update: (mark) -> @all[@all.indexOf(mark)] = mark
 
   remove: (mark) ->
     @all.splice(@all.indexOf(mark), 1)
@@ -100,96 +74,104 @@ class Marks
     document.getElementById('marks-container').innerHTML = ""
     @all = []
 
-  # drawAll: (scale = 1) ->
-  #   for mark in @all
-  #     mark.element.style.width = parseFloat(mark.element.style.width, 10) * +scale
-
 class Mark
+  MIN_WIDTH = 10
+  MAX_WIDTH = 150
+
   constructor: (e, @canvasGraph) ->
-    #TODO: make an active state
+    @canvas = @canvasGraph.canvas
+
     @element = document.createElement('div')
     @element.className = "mark"
-    @element.style.left = e.x
-    @element.style.top = e.target.offsetTop
-    @startingPoint = e.x
+
+    @element.style.left = @pointerXInElement(e) + "px"
+    @element.style.position =  'absolute'
+    @element.style.top = e.target.offsetTop + "px"
+    @element.style.height = @canvas.height - 13 + 'px' # subtract border height
+    @element.style.backgroundColor = 'rgba(255,0,0,.5)'
+    @element.style.border =  '2px solid red'
+    @element.style.borderTop =  '13px solid red'
+    @element.style.pointerEvents = 'auto'
+
+    @startingPoint = @toCanvasXPoint(e) - MIN_WIDTH
     @dragging = false
 
-    @element.addEventListener 'mousedown', (e) =>
-      # resizing
-      if (Math.abs e.layerX - (@domXMax-@domXMin)) < 12
-        @startingPoint = @domXMin
-        @dragging = true
-      else if e.layerX < 12
-        @startingPoint = @domXMax
-        @dragging = true
-      else if e.layerY > 15
-        @moving = true
-        @movingStart = e.x
-
-    @element.addEventListener 'mousemove', (e) =>
-      @draw(e) if @dragging
-      @move(e) if @moving
-
-    @element.addEventListener 'mouseup', (e) =>
-      if @dragging
-        @canvasGraph.marks.add(@)
-        document.getElementById('points').innerHTML += "x1: #{@dataXMin}, x2: #{@dataXMax}</br>"
-        console.log "Marks", @canvasGraph.marks
-        @dragging = false
-      else if @moving
-        @save(@domXMin, @domXMax)
-        @moving = false
-
-    @element.addEventListener 'click', (e) =>
-      @canvasGraph.marks.remove(@) if e.layerY < 15
+    @element.addEventListener 'mouseover', (e) => @hovering = true
+    @element.addEventListener 'mouseout', (e) => @hovering = false
+    @element.addEventListener 'mousedown', (e) => @onMouseDown(e)
+    @element.addEventListener 'click', (e) => @canvasGraph.marks.remove(@) if @pointerYInElement(e) < 15
+    window.addEventListener 'mousemove', (e) => @onMouseMove(e)
+    window.addEventListener 'mouseup', (e) => @onMouseUp(e)
 
   draw: (e) ->
-    markLeftX = Math.min @startingPoint, e.x
-    markRightX = Math.max @startingPoint, e.x
+    markLeftX = Math.min @startingPoint, @toCanvasXPoint(e)
+    markRightX = Math.max @startingPoint, @toCanvasXPoint(e)
 
-    @element.style.left = Math.min markLeftX, markRightX
-    @element.style.width = Math.abs markRightX - markLeftX
-    # @element.style.webkitTransform = "rotate(-2deg)" #whoa
+    width = (Math.min (Math.max (Math.abs markRightX - markLeftX), MIN_WIDTH), MAX_WIDTH)
 
-    @save(markLeftX, markRightX)
+    @element.style.left = (Math.min markLeftX, markRightX) + "px"
+    @element.style.width = width + "px"
+
+    @save(markLeftX, markLeftX+width)
 
   move: (e) ->
-    markLeftX = @domXMin - (@movingStart - e.x)
-    markRightX = @domXMax - (@movingStart - e.x)
-
-    @element.style.left = Math.min markLeftX, markRightX
-    @element.style.width = Math.abs markRightX - markLeftX
+    leftXPos = (@toCanvasXPoint(e) - @pointerOffset)
+    @element.style.left = leftXPos + "px"
+    @save(leftXPos, leftXPos+parseInt(@element.style.width, 10))
 
   save: (markLeftX, markRightX) ->
-    # need to update starting point (or remove)
-
-    #dom coords
-    @domXMin = markLeftX
-    @domXMax = markRightX
-
     #canvas coords
-    @canvasXMin = markLeftX - @canvasGraph.canvas.getBoundingClientRect().left
-    @canvasXMax = markRightX - @canvasGraph.canvas.getBoundingClientRect().left
+    @canvasXMin = markLeftX
+    @canvasXMax = markRightX
 
     #data coords
     @dataXMin = @canvasGraph.toDataXCoord(@canvasXMin)
     @dataXMax = @canvasGraph.toDataXCoord(@canvasXMax)
 
+  updateCursor: (e) ->
+    if @pointerYInElement(e) < 15
+      @element.style.cursor = "pointer"
+    else if ((Math.abs @pointerXInElement(e) - (@canvasXMax-@canvasXMin)) < 10) || @pointerXInElement(e) < 10
+      @element.style.cursor = "ew-resize"
+    else
+      @element.style.cursor = "move"
+
+  onMouseMove: (e) ->
+    e.preventDefault()
+    @draw(e) if @dragging
+    @move(e) if @moving
+    @updateCursor(e) if @hovering
+
+  onMouseDown: (e) ->
+    e.preventDefault()
+    @element.parentNode.appendChild(@element) #move to end of container for z index
+    if (Math.abs @pointerXInElement(e) - (@canvasXMax-@canvasXMin)) < 10
+      @startingPoint = @canvasXMin
+      @dragging = true
+    else if @pointerXInElement(e) < 10
+      @startingPoint = @canvasXMax
+      @dragging = true
+    else if @pointerYInElement(e) > 15
+      @moving = true
+      @pointerOffset = (@toCanvasXPoint(e) - @canvasXMin)
+
+  onMouseUp: (e) ->
+    e.preventDefault()
+    for mark in @canvasGraph.marks.all
+      mark.dragging = false
+      mark.moving = false
+    if (@ in @canvasGraph.marks.all) then @canvasGraph.marks.update(@) else @canvasGraph.marks.add(@)
+    @dragging = false
+    @moving = false
+
+  toCanvasXPoint: (e) -> e.pageX-@canvas.getBoundingClientRect().left - window.scrollX
+
+  pointerXInElement: (e) -> e.offsetX || e.clientX - e.target.offsetLeft + window.pageXOffset - @canvas.getBoundingClientRect().left
+
+  pointerYInElement: (e) -> e.offsetY || e.clientY - e.target.offsetTop + window.pageYOffset - @canvas.getBoundingClientRect().top
+
 
 canvas = document.getElementById("graph")
 canvasState = new CanvasGraph(canvas, light_curve_data)
-# canvasState.drawAxes()
 canvasState.plotPoints()
-# canvasState.rescale()
-# canvasState.plotZoomedPoints(15,34.98)
 
-#TODO:
-
-#zoom
-
-#add a scaling function to redraw marks
-#only do 'pointer-events: none' if drawing, take off if clicking inside a mark
-#add handles, dragging and such
-
-#make Marks create #marks-container, and CanvasGraph possibly create canvas
-#math
